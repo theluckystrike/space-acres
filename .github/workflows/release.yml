@@ -189,6 +189,10 @@ jobs:
 
       - name: Copy dependencies (macOS)
         run: |
+          target=${{ matrix.build.target }}
+          APP_PREFIX=target/bundle
+          BREW_PREFIX="$(brew --prefix)"
+
           # 2. Copy and fix dependencies
           destDir=$APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
           mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
@@ -239,6 +243,10 @@ jobs:
 
       - name: Fix dependencies (macOS)
         run: |
+          target=${{ matrix.build.target }}
+          APP_PREFIX=target/bundle
+          BREW_PREFIX="$(brew --prefix)"
+
           install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
           install_name_tool -change $BREW_PREFIX/opt/gtk4/lib/libgtk-4.1.dylib @executable_path/../Resources/lib/libgtk-4.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
           install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres

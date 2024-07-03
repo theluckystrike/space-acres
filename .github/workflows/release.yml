@@ -166,46 +166,9 @@ jobs:
           BUNDLE_VERSION="$(cargo pkgid | cut -d "#" -f2)"
           BUNDLE_BUILD=$(date +"%Y%m%d%H%M")
           APP_PREFIX=target/bundle
+          BREW_PREFIX="$(brew --prefix)"
 
-          function process_dependencies()
-          {
-            local target=$1
-            local destdir=$2
-            local file=$3
-            local rpath=$4
-
-            echo "Processing $file"
-
-            local inst_prefix="$(brew --prefix)/*"
-
-            local DEPS=$(dyld_info -dependents $file | tail -n +4)
-            local process_list=""
-            for dep in $DEPS; do
-              if [[ $dep == $inst_prefix ]]; then
-                dep_file=$(basename $dep)
-                new_dep_file=$destdir/$dep_file
-                if [ ! -f $new_dep_file ]; then
-                  # Not exist, do copy
-                  echo "  Copying $dep"
-                  cp -n $dep $destdir
-                fi
-
-                # Fix the dependency
-                echo "  Patching $dep"
-                install_name_tool -change $dep $rpath/$dep_file $file
-
-                # Collect list of dependencies
-                process_list="$new_dep_file $process_list"
-              fi
-            done
-
-            # Recursively process dependencies
-            for dep in $process_list; do
-              process_dependencies $target $destdir $dep $rpath
-            done
-          }
-
-          # 1. Create the bundle
+          # 1. Create the bundle folder structure
           mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/{MacOS,Resources}
           mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/{lib,share}
           cp target/$target/production/space-acres $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS
@@ -213,24 +176,246 @@ jobs:
           cp res/macos/space-acres.icns $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources
           cp res/macos/run-space-acres.sh $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS
 
+          mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/share/icons/hicolor
+          cp -r $BREW_PREFIX/share/icons/hicolor $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/share/icons
+
+          mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/share/glib-2.0
+          cp -r $BREW_PREFIX/share/glib-2.0/schemas $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/share/glib-2.0
+
           cp res/macos/Info.plist $APP_PREFIX/$target/SpaceAcres.app/Contents/
           sed -i '' "s/%BUNDLE_VERSION%/$BUNDLE_VERSION/g" $APP_PREFIX/$target/SpaceAcres.app/Contents/Info.plist
           sed -i '' "s/%BUNDLE_BUILD%/$BUNDLE_BUILD/g" $APP_PREFIX/$target/SpaceAcres.app/Contents/Info.plist
 
           # 2. Copy and fix dependencies
           destDir=$APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
-          process_dependencies $target $destDir $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres "@executable_path/../Resources/lib"
-
-          # 3. Copy loaders
           mkdir -p $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
-          cp -r /opt/homebrew/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
 
-          # 4. Fix loaders
-          for loader in $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so; do
-            process_dependencies $target $destDir $loader "@executable_path/../Resources/lib"
-          done
+          cp $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/gtk4/lib/libgtk-4.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/gdk-pixbuf/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/cairo/lib/libcairo-gobject.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/graphene/lib/libgraphene-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/pcre2/lib/libpcre2-8.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/Cellar/glib/2.80.2/lib/libgmodule-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxext/lib/libXext.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxrender/lib/libXrender.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxcb/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxcb/lib/libxcb-render.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxcb/lib/libxcb-shm.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/pixman/lib/libpixman-1.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxau/lib/libXau.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libxdmcp/lib/libXdmcp.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/jpeg-turbo/lib/libjpeg.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/graphite2/lib/libgraphite2.3.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/fribidi/lib/libfribidi.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/Cellar/pango/1.52.2/lib/libpangoft2-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libepoxy/lib/libepoxy.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/libtiff/lib/libtiff.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/cairo/lib/libcairo-script-interpreter.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/lzo/lib/liblzo2.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/zstd/lib/libzstd.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/opt/xz/lib/liblzma.5.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/Cellar/librsvg/2.58.1/lib/librsvg-2.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+          cp $BREW_PREFIX/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/gtk4/lib/libgtk-4.1.dylib @executable_path/../Resources/lib/libgtk-4.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/gdk-pixbuf/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo-gobject.2.dylib @executable_path/../Resources/lib/libcairo-gobject.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/graphene/lib/libgraphene-1.0.0.dylib @executable_path/../Resources/lib/libgraphene-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/MacOS/space-acres
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libglib-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pcre2/lib/libpcre2-8.0.dylib @executable_path/../Resources/lib/libpcre2-8.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libglib-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/glib/2.80.2/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgio-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/glib/2.80.2/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgio-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/glib/2.80.2/lib/libgmodule-2.0.0.dylib @executable_path/../Resources/lib/libgmodule-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgio-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgio-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/glib/2.80.2/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgmodule-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/glib/2.80.2/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgobject-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgraphene-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgraphene-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgraphene-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib @executable_path/../Resources/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxext/lib/libXext.6.dylib @executable_path/../Resources/lib/libXext.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxrender/lib/libXrender.1.dylib @executable_path/../Resources/lib/libXrender.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-render.0.dylib @executable_path/../Resources/lib/libxcb-render.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-shm.0.dylib @executable_path/../Resources/lib/libxcb-shm.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pixman/lib/libpixman-1.0.dylib @executable_path/../Resources/lib/libpixman-1.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo.2.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/libxcb/1.17.0/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-shm.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxau/lib/libXau.6.dylib @executable_path/../Resources/lib/libXau.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-shm.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxdmcp/lib/libXdmcp.6.dylib @executable_path/../Resources/lib/libXdmcp.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-shm.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxau/lib/libXau.6.dylib @executable_path/../Resources/lib/libXau.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxdmcp/lib/libXdmcp.6.dylib @executable_path/../Resources/lib/libXdmcp.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb.1.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/libxcb/1.17.0/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-render.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxau/lib/libXau.6.dylib @executable_path/../Resources/lib/libXau.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-render.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxdmcp/lib/libXdmcp.6.dylib @executable_path/../Resources/lib/libXdmcp.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libxcb-render.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib @executable_path/../Resources/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libXrender.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libX11.6.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib @executable_path/../Resources/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libXext.6.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libfreetype.6.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libfontconfig.1.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/cairo/1.18.0/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib @executable_path/../Resources/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxext/lib/libXext.6.dylib @executable_path/../Resources/lib/libXext.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxrender/lib/libXrender.1.dylib @executable_path/../Resources/lib/libXrender.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-render.0.dylib @executable_path/../Resources/lib/libxcb-render.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-shm.0.dylib @executable_path/../Resources/lib/libxcb-shm.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pixman/lib/libpixman-1.0.dylib @executable_path/../Resources/lib/libpixman-1.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-gobject.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgmodule-2.0.0.dylib @executable_path/../Resources/lib/libgmodule-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../Resources/lib/libjpeg.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgdk_pixbuf-2.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libharfbuzz.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libharfbuzz.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/graphite2/lib/libgraphite2.3.dylib @executable_path/../Resources/lib/libgraphite2.3.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libharfbuzz.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpango-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpango-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpango-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fribidi/lib/libfribidi.0.dylib @executable_path/../Resources/lib/libfribidi.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpango-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpango-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/pango/1.52.2/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/pango/1.52.2/lib/libpangoft2-1.0.0.dylib @executable_path/../Resources/lib/libpangoft2-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangocairo-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/pango/1.52.2/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libpangoft2-1.0.0.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgmodule-2.0.0.dylib @executable_path/../Resources/lib/libgmodule-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fribidi/lib/libfribidi.0.dylib @executable_path/../Resources/lib/libfribidi.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo-gobject.2.dylib @executable_path/../Resources/lib/libcairo-gobject.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gdk-pixbuf/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libepoxy/lib/libepoxy.0.dylib @executable_path/../Resources/lib/libepoxy.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/graphene/lib/libgraphene-1.0.0.dylib @executable_path/../Resources/lib/libgraphene-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangoft2-1.0.0.dylib @executable_path/../Resources/lib/libpangoft2-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libtiff/lib/libtiff.6.dylib @executable_path/../Resources/lib/libtiff.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../Resources/lib/libjpeg.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo-script-interpreter.2.dylib @executable_path/../Resources/lib/libcairo-script-interpreter.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/cairo/1.18.0/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/fontconfig/lib/libfontconfig.1.dylib @executable_path/../Resources/lib/libfontconfig.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libx11/lib/libX11.6.dylib @executable_path/../Resources/lib/libX11.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxext/lib/libXext.6.dylib @executable_path/../Resources/lib/libXext.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxrender/lib/libXrender.1.dylib @executable_path/../Resources/lib/libXrender.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb.1.dylib @executable_path/../Resources/lib/libxcb.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-render.0.dylib @executable_path/../Resources/lib/libxcb-render.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/libxcb/lib/libxcb-shm.0.dylib @executable_path/../Resources/lib/libxcb-shm.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pixman/lib/libpixman-1.0.dylib @executable_path/../Resources/lib/libpixman-1.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/lzo/lib/liblzo2.2.dylib @executable_path/../Resources/lib/liblzo2.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libcairo-script-interpreter.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/zstd/lib/libzstd.1.dylib @executable_path/../Resources/lib/libzstd.1.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libtiff.6.dylib
+          install_name_tool -change $BREW_PREFIX/opt/xz/lib/liblzma.5.dylib @executable_path/../Resources/lib/liblzma.5.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libtiff.6.dylib
+          install_name_tool -change $BREW_PREFIX/opt/jpeg-turbo/lib/libjpeg.8.dylib @executable_path/../Resources/lib/libjpeg.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libtiff.6.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ani.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ani.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ani.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-bmp.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-bmp.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-bmp.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-gif.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-gif.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-gif.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-icns.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-icns.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-icns.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ico.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ico.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ico.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-ico.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-pnm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-pnm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-pnm.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-qtif.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-qtif.so
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-qtif.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-qtif.so
+          install_name_tool -change $BREW_PREFIX/Cellar/librsvg/2.58.1/lib/librsvg-2.2.dylib @executable_path/../Resources/lib/librsvg-2.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo-gobject.2.dylib @executable_path/../Resources/lib/libcairo-gobject.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/gdk-pixbuf/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          install_name_tool -change $BREW_PREFIX/opt/libpng/lib/libpng16.16.dylib @executable_path/../Resources/lib/libpng16.16.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo-gobject.2.dylib @executable_path/../Resources/lib/libcairo-gobject.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/freetype/lib/libfreetype.6.dylib @executable_path/../Resources/lib/libfreetype.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gdk-pixbuf/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/gettext/lib/libintl.8.dylib @executable_path/../Resources/lib/libintl.8.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/librsvg-2.2.dylib
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tga.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tga.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tga.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tiff.so
+          install_name_tool -change $BREW_PREFIX/opt/libtiff/lib/libtiff.6.dylib @executable_path/../Resources/lib/libtiff.6.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tiff.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tiff.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-tiff.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xbm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xbm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xbm.so
+          install_name_tool -change $BREW_PREFIX/Cellar/gdk-pixbuf/2.42.12/lib/libgdk_pixbuf-2.0.0.dylib @executable_path/../Resources/lib/libgdk_pixbuf-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xpm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libglib-2.0.0.dylib @executable_path/../Resources/lib/libglib-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xpm.so
+          install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgobject-2.0.0.dylib @executable_path/../Resources/lib/libgobject-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-xpm.so
 
-          cp -r /opt/homebrew/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0
+          # Copy loaders
+          cp -r $BREW_PREFIX/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0
           sed -i '' "s|$(brew --prefix)|/Applications/SpaceAcres.app/Contents/Resources|g" $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
         if: runner.os == 'macOS'
 

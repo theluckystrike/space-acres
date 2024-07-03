@@ -241,7 +241,7 @@ jobs:
           sed -i '' "s|$(brew --prefix)|/Applications/SpaceAcres.app/Contents/Resources|g" $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
         if: runner.os == 'macOS'
 
-      - name: Fix dependencies (macOS)
+      - name: Fix dependencies 1 (macOS)
         run: |
           target=${{ matrix.build.target }}
           APP_PREFIX=target/bundle
@@ -343,6 +343,13 @@ jobs:
           install_name_tool -change $BREW_PREFIX/opt/glib/lib/libgio-2.0.0.dylib @executable_path/../Resources/lib/libgio-2.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
           install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpangocairo-1.0.0.dylib @executable_path/../Resources/lib/libpangocairo-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
           install_name_tool -change $BREW_PREFIX/opt/pango/lib/libpango-1.0.0.dylib @executable_path/../Resources/lib/libpango-1.0.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
+        if: runner.os == 'macOS'
+
+      - name: Fix dependencies 2 (macOS)
+        run: |
+          target=${{ matrix.build.target }}
+          APP_PREFIX=target/bundle
+          BREW_PREFIX="$(brew --prefix)"
           install_name_tool -change $BREW_PREFIX/opt/harfbuzz/lib/libharfbuzz.0.dylib @executable_path/../Resources/lib/libharfbuzz.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
           install_name_tool -change $BREW_PREFIX/opt/cairo/lib/libcairo.2.dylib @executable_path/../Resources/lib/libcairo.2.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib
           install_name_tool -change $BREW_PREFIX/opt/fribidi/lib/libfribidi.0.dylib @executable_path/../Resources/lib/libfribidi.0.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/libgtk-4.1.dylib

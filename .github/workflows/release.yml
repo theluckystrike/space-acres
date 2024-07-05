@@ -185,11 +185,11 @@ jobs:
           libs="cairo fontconfig freetype fribidi gdk-pixbuf gettext glib graphene graphite2 gtk4 harfbuzz jpeg-turbo libepoxy libpng libtiff librsvg libx11 libxau libxcb libxdmcp libxext libxrender lzo pango pcre2 pixman xz zstd"
 
           for lib in $libs; do
-            cp -R $BREW_PREFIX/opt/$lib/lib/*.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
+            cp -R /opt/homebrew/opt/$lib/lib/*.dylib $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib
           done
 
           # Loaders
-          cp $BREW_PREFIX/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
+          cp -R /opt/homebrew/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so $APP_PREFIX/$target/SpaceAcres.app/Contents/Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders
 
           # 3. Fix dependencies
           function fix_dep()
